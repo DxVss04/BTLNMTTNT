@@ -1,152 +1,179 @@
 import tkinter as tk
 from tkinter import messagebox
+from tkinter import ttk
 
-#=================init====================
-root = tk.Tk()
-root.title("Caro")
-root.geometry("800x600")
-root.resizable(False, False)
-
+# Các hằng số cấu hình giao diện
 BOARD_SIZE = 15
-cell_size = 30
-start = 20
-board = [["" for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
-current_player = ["X"]
-game_mode = ["PVP"]  # PVP, PVE, EVE
-difficulty = ["Dễ"]  # Dễ, Trung bình, Khó
-#=================Check Win====================
-def check_winner(row, col, mark):
-    directions = [(1, 0), (0, 1), (1, 1), (1, -1)]
-    for dx, dy in directions:
-        count = 1
-        i, j = row + dx, col + dy
-        while 0 <= i < BOARD_SIZE and 0 <= j < BOARD_SIZE and board[i][j] == mark:
-            count += 1
-            i += dx
-            j += dy
-        i, j = row - dx, col - dy
-        while 0 <= i < BOARD_SIZE and 0 <= j < BOARD_SIZE and board[i][j] == mark:
-            count += 1
-            i -= dx
-            j -= dy
-        if count >= 5:
-            return True
-    return False
+CELL_SIZE = 40
+BOARD_WIDTH = BOARD_SIZE * CELL_SIZE
+BOARD_HEIGHT = BOARD_SIZE * CELL_SIZE
+BG_COLOR = "#E3C586"  # Màu gỗ bàn cờ
+LINE_COLOR = "#000000"
+HIGHLIGHT_COLOR = "#90EE90"
 
-#=========================New Game====================
-def new_game():
-    canvas.delete("all")
-    for i in range(BOARD_SIZE + 1):
-        canvas.create_line(start, start + i * cell_size, start + BOARD_SIZE * cell_size, start + i * cell_size)
-        canvas.create_line(start + i * cell_size, start, start + i * cell_size, start + BOARD_SIZE * cell_size)
-    for i in range(BOARD_SIZE):
-        for j in range(BOARD_SIZE):
-            board[i][j] = ""
-    current_player[0] = "X"
-    turn_label.config(text="Lượt: X")
-    canvas.bind("<Button-1>", draw_mark)
+class CaroUI:
+    def __init__(self, root, game_manager=None):
+        self.root = root
+        self.root.title("Cờ Caro AI - Python Project")
+        self.game_manager = game_manager  # Tham chiếu đến logic game (Controller)
+        
+        # Biến lưu cấu hình
+        self.mode_var = tk.StringVar(value="PVP") # PVP, PVE, EVE [cite: 5, 6, 7]
+        self.diff_var = tk.StringVar(value="Dễ")  # Dễ, Trung bình, Khó [cite: 8-11]
+        
+        # Cấu trúc giao diện chính
+        self.setup_layout()
+        self.draw_grid()
 
-#=================Menu====================
-menu_bar = tk.Menu(root)
-game_menu = tk.Menu(menu_bar, tearoff=0)
-game_menu.add_command(label="Bắt đầu ván mới", command=new_game)
-game_menu.add_command(label="Lưu ván")
-game_menu.add_command(label="Thoát", command=root.quit)
-menu_bar.add_cascade(label="Trò chơi", menu=game_menu)
+    def setup_layout(self):
+        """Thiết lập layout gồm Bàn cờ (Trái) và Menu điều khiển (Phải) """
+        
+        # 1. Khung chứa bàn cờ (Canvas)
+        self.board_frame = tk.Frame(self.root, padx=10, pady=10)
+        self.board_frame.pack(side=tk.LEFT)
+        
+        self.canvas = tk.Canvas(
+            self.board_frame, 
+            width=BOARD_WIDTH, 
+            height=BOARD_HEIGHT, 
+            bg=BG_COLOR,
+            highlightthickness=1, 
+            highlightbackground="black"
+        )
+        self.canvas.pack()
+        
+        # Bắt sự kiện click chuột 
+        self.canvas.bind("<Button-1>", self.on_board_click)
 
-help_menu = tk.Menu(menu_bar, tearoff=0)
-help_menu.add_command(label="Luật chơi", command=lambda: messagebox.showinfo("Luật chơi", "Người chơi nào xếp được 5 quân liên tiếp sẽ thắng!"))
-help_menu.add_command(label="Thông tin", command=lambda: messagebox.showinfo("Thông tin", "Game Caro Python"))
-menu_bar.add_cascade(label="Trợ giúp", menu=help_menu)
+        # 2. Khung điều khiển (Menu)
+        self.control_frame = tk.Frame(self.root, padx=20, pady=20, width=200)
+        self.control_frame.pack(side=tk.RIGHT, fill=tk.Y)
 
-root.config(menu=menu_bar)
+        # --- Tiêu đề ---
+        tk.Label(self.control_frame, text="GAME MENU", font=("Arial", 16, "bold")).pack(pady=10)
 
-#=================Giao dien====================
-main_frame = tk.Frame(root, bg="#f0f0f0")
-main_frame.pack(fill=tk.BOTH, expand=True)
+        # --- Chọn chế độ chơi [cite: 4] ---
+        tk.Label(self.control_frame, text="Chế độ chơi:", anchor="w").pack(fill=tk.X)
+        modes = [("Người vs Người", "PVP"), ("Người vs Máy", "PVE"), ("Máy vs Máy", "EVE")]
+        for text, val in modes:
+            tk.Radiobutton(self.control_frame, text=text, variable=self.mode_var, value=val).pack(anchor="w")
+        
+        # --- Chọn độ khó AI [cite: 8] ---
+        tk.Label(self.control_frame, text="Độ khó AI:", anchor="w").pack(fill=tk.X, pady=(10, 0))
+        difficulty_box = ttk.Combobox(self.control_frame, textvariable=self.diff_var)
+        difficulty_box['values'] = ("Dễ", "Trung bình", "Khó")
+        difficulty_box.current(0)
+        difficulty_box.pack(fill=tk.X)
 
-board_frame = tk.Frame(main_frame, bg="white", bd=2, relief=tk.SUNKEN)
-board_frame.place(x=20, y=20, width=520, height=520)
+        # --- Các nút chức năng  ---
+        btn_opts = {'font': ("Arial", 10), 'pady': 5}
+        
+        tk.Button(self.control_frame, text="Ván mới (Restart)", bg="#4CAF50", fg="white", 
+                  command=self.on_restart, **btn_opts).pack(fill=tk.X, pady=15)
+        
+        # Nhóm nút Undo/Redo
+        undo_frame = tk.Frame(self.control_frame)
+        undo_frame.pack(fill=tk.X)
+        tk.Button(undo_frame, text="Undo", command=self.on_undo, width=8, **btn_opts).pack(side=tk.LEFT, padx=2)
+        tk.Button(undo_frame, text="Redo", command=self.on_redo, width=8, **btn_opts).pack(side=tk.RIGHT, padx=2)
 
-canvas = tk.Canvas(board_frame, width=520, height=520, bg="white")
-canvas.pack(fill=tk.BOTH, expand=True)
+        # --- Thông báo trạng thái ---
+        self.status_label = tk.Label(self.control_frame, text="Lượt: X", font=("Arial", 12, "bold"), fg="blue")
+        self.status_label.pack(side=tk.BOTTOM, pady=20)
 
-# Ban co
-for i in range(16):
-    canvas.create_line(start, start + i*cell_size, start + 15*cell_size, start + i*cell_size, fill="gray")
-    canvas.create_line(start + i*cell_size, start, start + i*cell_size, start + 15*cell_size, fill="gray")
+    def draw_grid(self):
+        """Vẽ lưới bàn cờ 15x15 """
+        self.canvas.delete("all") # Xóa bàn cờ cũ
+        
+        # Vẽ các đường kẻ ngang và dọc
+        for i in range(BOARD_SIZE):
+            # Đường ngang
+            self.canvas.create_line(
+                CELL_SIZE//2, i * CELL_SIZE + CELL_SIZE//2,
+                BOARD_WIDTH - CELL_SIZE//2, i * CELL_SIZE + CELL_SIZE//2,
+                fill=LINE_COLOR
+            )
+            # Đường dọc
+            self.canvas.create_line(
+                i * CELL_SIZE + CELL_SIZE//2, CELL_SIZE//2,
+                i * CELL_SIZE + CELL_SIZE//2, BOARD_HEIGHT - CELL_SIZE//2,
+                fill=LINE_COLOR
+            )
 
-side_frame = tk.Frame(main_frame, bg="#dfe6e9", bd=2, relief=tk.GROOVE)
-side_frame.place(x=550, y=20, width=220, height=500)
+    def on_board_click(self, event):
+        """Xử lý sự kiện click chuột """
+        # Chuyển đổi tọa độ pixel sang tọa độ lưới (row, col)
+        col = event.x // CELL_SIZE
+        row = event.y // CELL_SIZE
 
-tk.Label(side_frame, text="Thông tin người chơi", font=("Arial", 12, "bold"), bg="#dfe6e9").pack(pady=10)
-tk.Label(side_frame, text="Người chơi 1: X", font=("Arial", 11), bg="#dfe6e9").pack(pady=5)
-tk.Label(side_frame, text="Người chơi 2: O", font=("Arial", 11), bg="#dfe6e9").pack(pady=5)
+        if 0 <= row < BOARD_SIZE and 0 <= col < BOARD_SIZE:
+            # Nếu đã kết nối logic game, gửi tọa độ sang Game Manager
+            if self.game_manager:
+                self.game_manager.handle_click(row, col)
+            else:
+                # Code dùng để test giao diện khi chưa có logic
+                print(f"Clicked cell: ({row}, {col})")
+                # Demo vẽ thử (Xóa đoạn này khi ghép code chính thức)
+                self.draw_piece(row, col, "X" if (row+col)%2==0 else "O")
 
-tk.Button(side_frame, text="Bắt đầu ván mới", font=("Arial", 10), width=20, command=new_game).pack(pady=20)
-tk.Button(side_frame, text="Thoát", font=("Arial", 10), width=20, command=root.quit).pack(pady=10)
+    def draw_piece(self, row, col, player, is_last_move=False):
+        """Vẽ quân cờ X hoặc O lên bàn cờ"""
+        center_x = col * CELL_SIZE + CELL_SIZE // 2
+        center_y = row * CELL_SIZE + CELL_SIZE // 2
+        offset = CELL_SIZE // 4
 
-#=================Luot====================
-turn_label = tk.Label(root, text="Lượt: X", font=("Arial", 14))
-turn_label.pack(pady=10)
+        # Xóa hình cũ ở ô đó (nếu có) để tránh vẽ chồng
+        self.canvas.addtag_dtag("all", f"cell_{row}_{col}")
+        
+        if player == "X":
+            color = "blue"
+            self.canvas.create_line(center_x - offset, center_y - offset,
+                                    center_x + offset, center_y + offset,
+                                    width=3, fill=color, tags=f"move_{row}_{col}")
+            self.canvas.create_line(center_x + offset, center_y - offset,
+                                    center_x - offset, center_y + offset,
+                                    width=3, fill=color, tags=f"move_{row}_{col}")
+        elif player == "O":
+            color = "red"
+            self.canvas.create_oval(center_x - offset, center_y - offset,
+                                    center_x + offset, center_y + offset,
+                                    width=3, outline=color, tags=f"move_{row}_{col}")
+        
+        # Highlight nước đi mới nhất (Yêu cầu Tuần 5) [cite: 32]
+        if is_last_move:
+             self.canvas.create_rectangle(col * CELL_SIZE, row * CELL_SIZE,
+                                         (col+1) * CELL_SIZE, (row+1) * CELL_SIZE,
+                                         outline=HIGHLIGHT_COLOR, width=2)
 
-#=================click====================
-def draw_mark(event):
-    x, y = event.x, event.y
-    col = (x - start) // cell_size
-    row = (y - start) // cell_size
+    def update_status(self, message, color="black"):
+        """Cập nhật label trạng thái"""
+        self.status_label.config(text=message, fg=color)
 
-    if 0 <= row < BOARD_SIZE and 0 <= col < BOARD_SIZE:
-        if board[row][col] == "":
-            px = start + col * cell_size + cell_size / 2
-            py = start + row * cell_size + cell_size / 2
-            mark = current_player[0]
+    def show_message(self, title, msg):
+        """Hiển thị popup thông báo (Thắng/Thua)"""
+        messagebox.showinfo(title, msg)
 
-            color = "red" if mark == "X" else "blue"
-            canvas.create_text(px, py, text=mark, fill=color, font=("Arial", 18, "bold"))
-            board[row][col] = mark
-
-            if check_winner(row, col, mark):
-                messagebox.showinfo("Kết quả", f"Người chơi {mark} thắng!")
-                canvas.unbind("<Button-1>")
-                return
-
-            if all(board[i][j] != "" for i in range(BOARD_SIZE) for j in range(BOARD_SIZE)):
-                messagebox.showinfo("Kết quả", "Hòa!")
-                canvas.unbind("<Button-1>")
-                return
-            
-            current_player[0] = "O" if mark == "X" else "X"
-            turn_label.config(text=f"Lượt: {current_player[0]}")
+    # --- Các hàm Callback (Sẽ gọi sang GameManager) ---
+    def on_restart(self):
+        if self.game_manager:
+            self.game_manager.restart_game()
         else:
-            messagebox.showwarning( "Ô này đã được đánh rồi!")
+            self.draw_grid() # Reset giao diện demo
 
-canvas.bind("<Button-1>", draw_mark)
-#========================================
-#Menu GameMode
-mode_menu = tk.Menu(menu_bar, tearoff=0)
-def set_mode(mode):
-    game_mode[0] = mode
-    new_game()
-    turn_label.config(text=f"Chế độ: {mode}")
+    def on_undo(self):
+        if self.game_manager:
+            self.game_manager.undo_move()
+        else:
+            print("Undo clicked")
 
-mode_menu.add_command(label="Người vs Người (PVP)", command=lambda: set_mode("PVP"))
-mode_menu.add_command(label="Người vs Máy (PVE)", command=lambda: set_mode("PVE"))
-mode_menu.add_command(label="Máy vs Máy (EVE)", command=lambda: set_mode("EVE"))
-menu_bar.add_cascade(label="Chế độ chơi", menu=mode_menu)
+    def on_redo(self):
+        if self.game_manager:
+            self.game_manager.redo_move()
+        else:
+            print("Redo clicked")
 
-#Menu do kho
-difficulty_menu = tk.Menu(menu_bar, tearoff=0)
-def set_difficulty(level):
-    difficulty[0] = level
-    messagebox.showinfo("Độ khó", f"Đã chọn độ khó: {level}")
-difficulty_menu.add_command(label="Dễ", command=lambda: set_difficulty("Dễ"))
-difficulty_menu.add_command(label="Trung bình", command=lambda: set_difficulty("Trung bình"))
-difficulty_menu.add_command(label="Khó", command=lambda: set_difficulty("Khó"))
-menu_bar.add_cascade(label="Độ khó", menu=difficulty_menu)
-
-
-root.config(menu=menu_bar)
-root.mainloop()
-
-
+# if __name__ == "__main__":
+#     root = tk.Tk()
+#     root.geometry(f"{BOARD_WIDTH + 250}x{BOARD_HEIGHT + 50}")
+#     app = CaroUI(root)
+#     root.mainloop()
