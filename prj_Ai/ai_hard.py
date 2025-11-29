@@ -1,4 +1,6 @@
-
+# ==================================================
+#  File: ai_hard.py
+#  Mô tả: Bot Caro cấp độ KHÓ NHẤT – Minimax + Alpha-Beta Pruning
 import random
 from copy import deepcopy
 
