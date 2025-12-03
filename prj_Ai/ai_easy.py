@@ -1,4 +1,4 @@
-# ai_easy.py - MỨC DỄ (dựa hoàn toàn trên bản Java của bạn)
+# ai_easy.py - MỨC DỄ
 # Tính năng: thắng ngay → chặn → gần quân → ngẫu nhiên
 import random
 from copy import deepcopy
@@ -37,7 +37,6 @@ def ai_easy_move(board_manager, player):
                 board[i][j] = player
                 if board_manager.check_win(i, j, player):
                     board[i][j] = 0
-                    print(f"[AI Dễ] Thắng ngay tại ({i}, {j})")
                     return i, j
                 board[i][j] = 0
 
@@ -50,7 +49,6 @@ def ai_easy_move(board_manager, player):
                 board[i][j] = opponent
                 if board_manager.check_win(i, j, opponent):
                     board[i][j] = 0
-                    print(f"[AI Dễ] Chặn đối thủ thắng tại ({i}, {j})")
                     return i, j
                 board[i][j] = 0
 
@@ -65,7 +63,6 @@ def ai_easy_move(board_manager, player):
 
     if near_cells:
         move = random.choice(near_cells)
-        print(f"[AI Dễ] Đánh gần quân tại {move}")
         return move
 
     # ==================================================================
@@ -74,7 +71,6 @@ def ai_easy_move(board_manager, player):
     empty_cells = [(i, j) for i in range(SIZE) for j in range(SIZE) if board[i][j] == 0]
     if empty_cells:
         move = random.choice(empty_cells)
-        print(f"[AI Dễ] Đánh ngẫu nhiên tại {move}")
         return move
 
     return None  # Hòa
