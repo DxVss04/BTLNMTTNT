@@ -52,12 +52,10 @@ def find_forced(board_manager, player):
         board_manager.board[x][y] = player
         if board_manager.check_win(x, y, player):
             board_manager.board[x][y] = 0
-            print(f"[AI Hard] THẮNG NGAY tại ({x},{y})")
             return (x, y)
         board_manager.board[x][y] = opponent
         if board_manager.check_win(x, y, opponent):
             board_manager.board[x][y] = 0
-            print(f"[AI Hard] CHẶN THẮNG tại ({x},{y})")
             return (x, y)
         board_manager.board[x][y] = 0
     return None
@@ -97,13 +95,10 @@ def minimax(board, depth, alpha, beta, maximizing, player, board_manager):
         return val, best
 
 def ai_hard_move(board_manager, player):
-    print(f"[AI Hard] Đang tính toán... (depth={MAX_DEPTH})")
     forced = find_forced(board_manager, player)
     if forced: return forced
 
     board_copy = deepcopy(board_manager.board)
     _, move = minimax(board_copy, MAX_DEPTH, -float('inf'), float('inf'), True, player, board_manager)
     move = move or random.choice(get_candidates(board_manager.board) or [(7,7)])
-
-    print(f"[AI Hard] Chọn nước đi: {move}")
     return move
