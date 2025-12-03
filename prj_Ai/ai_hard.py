@@ -6,7 +6,7 @@ SIZE = 15
 MAX_DEPTH = 3
 
 # ==================================================================
-# Candidate reduction giống hệt Java: chỉ xét ô gần quân đã đánh
+# Candidate reduction
 # ==================================================================
 def is_near_occupied(board, x, y):
     for dx in [-1, 0, 1]:
