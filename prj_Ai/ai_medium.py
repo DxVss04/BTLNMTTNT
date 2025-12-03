@@ -54,9 +54,8 @@ def ai_medium_move(board_manager, player):
                     best_moves.append((x, y))
 
     if not best_moves:
-        print("[AI Trung bình] Bàn đầy – Hòa!")
         return None
 
     move = random.choice(best_moves)
-    print(f"[AI Trung bình] Chọn ({move}) – Điểm: {best_score}")
     return move
+
