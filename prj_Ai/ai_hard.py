@@ -3,182 +3,107 @@ from copy import deepcopy
 
 # ==================================================
 # File: ai_hard.py
-# Mô tả: Bot Caro cấp độ KHÓ NHẤT – Minimax + Alpha-Beta Pruning
 # Người viết: Thanh Sơn – Nhóm 5 (Caro Bot)
+# AI KHÓ NHẤT – Minimax + Alpha-Beta
 # ==================================================
 
-BOARD_SIZE = 15
 MAX_DEPTH = 4
 CANDIDATE_DIST = 2
 
-
-# ------------------- Tìm nước thắng / chặn thắng ngay -------------------
-def find_forced_move(board, mark, game):
-    """Tìm nước thắng ngay hoặc chặn đối thủ thắng ngay – dùng game.check_win()"""
-    opponent = "O" if mark == "X" else "X"
-    candidates = get_candidate_moves(board)
-
-    # 1. Có nước thắng luôn không?
-    for r, c in candidates:
-        game.board[r][c] = mark
-        if game.check_win(mark):
-            game.board[r][c] = ""
-            print(f"[AI Hard] THẮNG NGAY tại ({r}, {c})!")
-            return (r, c)
-        game.board[r][c] = ""
-
-    # 2. Đối thủ có nước thắng không? → phải chặn
-    for r, c in candidates:
-        game.board[r][c] = opponent
-        if game.check_win(opponent):
-            game.board[r][c] = ""
-            print(f"[AI Hard] CHẶN THẮNG đối thủ tại ({r}, {c})!")
-            return (r, c)
-        game.board[r][c] = ""
-
-    return None
-
-
-# ------------------- Lấy danh sách nước đi tiềm năng -------------------
-def get_candidate_moves(board):
-    """Chỉ xét các ô trống gần quân đã có (giảm từ 225 → ~30-50 ô)"""
+def get_candidates(board):
     size = len(board)
     candidates = set()
     has_piece = False
-
     for i in range(size):
         for j in range(size):
-            if board[i][j] != "":
+            if board[i][j] != 0:
                 has_piece = True
-                # Quét xung quanh bán kính 2
-                for di in range(-CANDIDATE_DIST, CANDIDATE_DIST + 1):
-                    for dj in range(-CANDIDATE_DIST, CANDIDATE_DIST + 1):
+                for di in range(-2, 3):
+                    for dj in range(-2, 3):
                         ni, nj = i + di, j + dj
-                        if 0 <= ni < size and 0 <= nj < size and board[ni][nj] == "":
+                        if 0 <= ni < size and 0 <= nj < size and board[ni][nj] == 0:
                             candidates.add((ni, nj))
+    return [(7,7)] if not has_piece else list(candidates)
 
-    if not has_piece:
-        center = size // 2
-        return [(center, center)]
-
-    return list(candidates)
-
-
-# ------------------- Đánh giá nhanh nước đi (dùng để sắp xếp) -------------------
-def evaluate_move_priority(board, row, col, mark):
-    """Đánh giá nhanh để sắp xếp nước đi tốt trước → Alpha-Beta cắt nhanh hơn"""
-    if board[row][col] != "":
-        return -999999
-
-    opponent = "O" if mark == "X" else "X"
+def evaluate_priority(board, x, y, player):
+    if board[x][y] != 0: return -999999
+    opponent = -player
     score = 0
-    directions = [(1, 0), (0, 1), (1, 1), (1, -1)]
-
-    for dx, dy in directions:
-        my_count = opp_count = 0
-        # Đếm quân mình
-        x, y = row + dx, col + dy
-        while 0 <= x < len(board) and 0 <= y < len(board) and board[x][y] == mark:
-            my_count += 1
-            x += dx; y += dy
-        x, y = row - dx, col - dy
-        while 0 <= x < len(board) and 0 <= y < len(board) and board[x][y] == mark:
-            my_count += 1
-            x -= dx; y -= dy
-
-        # Đếm quân đối thủ
-        x, y = row + dx, col + dy
-        while 0 <= x < len(board) and 0 <= y < len(board) and board[x][y] == opponent:
-            opp_count += 1
-            x += dx; y += dy
-        x, y = row - dx, col - dy
-        while 0 <= x < len(board) and 0 <= y < len(board) and board[x][y] == opponent:
-            opp_count += 1
-            x -= dx; y -= dy
-
-        # Ưu tiên cực cao nếu tạo 4 hoặc chặn 4
-        if my_count >= 4: score += 100000
-        elif my_count == 3: score += 10000
-        elif my_count == 2: score += 1000
-
-        if opp_count >= 4: score += 200000  # Phải chặn trước!
-        elif opp_count == 3: score += 50000
-
+    for dx, dy in [(0,1),(1,0),(1,1),(1,-1)]:
+        my = opp = 0
+        for i in range(1, 6):
+            nx, ny = x + dx*i, y + dy*i
+            if 0 <= nx < 15 and 0 <= ny < 15:
+                if board[nx][ny] == player: my += 1
+                if board[nx][ny] == opponent: opp += 1
+            nx, ny = x - dx*i, y - dy*i
+            if 0 <= nx < 15 and 0 <= ny < 15:
+                if board[nx][ny] == player: my += 1
+                if board[nx][ny] == opponent: opp += 1
+        if my >= 4: score += 100000
+        if opp >= 4: score += 200000
+        if my == 3: score += 10000
+        if opp == 3: score += 50000
     return score
 
+def find_forced(board_manager, player):
+    opponent = -player
+    for x, y in get_candidates(board_manager.board):
+        board_manager.board[x][y] = player
+        if board_manager.check_win(x, y, player):
+            board_manager.board[x][y] = 0
+            print(f"[AI Hard] THẮNG NGAY tại ({x},{y})")
+            return (x, y)
+        board_manager.board[x][y] = opponent
+        if board_manager.check_win(x, y, opponent):
+            board_manager.board[x][y] = 0
+            print(f"[AI Hard] CHẶN THẮNG tại ({x},{y})")
+            return (x, y)
+        board_manager.board[x][y] = 0
+    return None
 
-# ------------------- Minimax + Alpha-Beta Pruning -------------------
-def minimax(board, depth, alpha, beta, maximizing_player, ai_mark, game):
-    """Trả về (score, best_move) – dùng game.check_win() để kiểm tra thắng"""
-    if depth == 0:
-        return 0, None  # Hòa
+def minimax(board, depth, alpha, beta, maximizing, player, board_manager):
+    if depth == 0: return 0, None
+    if board_manager.check_win_from_last_move(player): return 1000000, None
+    opp = -player
+    if board_manager.check_win_from_last_move(opp): return -1000000, None
 
-    # Kiểm tra đã có người thắng chưa (dùng game.check_win)
-    if game.check_win(ai_mark):
-        return 1000000, None
-    opponent = "O" if ai_mark == "X" else "X"
-    if game.check_win(opponent):
-        return -1000000, None
+    candidates = get_candidates(board)
+    if not candidates: return 0, None
 
-    candidates = get_candidate_moves(board)
-    if not candidates:
-        return 0, None
+    candidates.sort(key=lambda p: evaluate_priority(board, p[0], p[1], player if maximizing else opp),
+                    reverse=maximizing)
 
-    # Sắp xếp nước đi tốt trước → Alpha-Beta cắt cực mạnh
-    current_mark = ai_mark if maximizing_player else opponent
-    candidates.sort(
-        key=lambda pos: evaluate_move_priority(board, pos[0], pos[1], current_mark),
-        reverse=maximizing_player
-    )
-
-    best_move = None
-    if maximizing_player:
-        max_eval = -float('inf')
-        for r, c in candidates:
-            board[r][c] = ai_mark
-            game.board = board  # Đồng bộ với game để check_win đúng
-            eval_score, _ = minimax(board, depth - 1, alpha, beta, False, ai_mark, game)
-            board[r][c] = ""
-            if eval_score > max_eval:
-                max_eval = eval_score
-                best_move = (r, c)
-            alpha = max(alpha, eval_score)
-            if beta <= alpha:
-                break
-        return max_eval, best_move
+    best = None
+    if maximizing:
+        val = -float('inf')
+        for x, y in candidates:
+            board[x][y] = player
+            v, _ = minimax(board, depth-1, alpha, beta, False, player, board_manager)
+            board[x][y] = 0
+            if v > val: val, best = v, (x,y)
+            alpha = max(alpha, v)
+            if beta <= alpha: break
+        return val, best
     else:
-        min_eval = float('inf')
-        for r, c in candidates:
-            board[r][c] = opponent
-            game.board = board
-            eval_score, _ = minimax(board, depth - 1, alpha, beta, True, ai_mark, game)
-            board[r][c] = ""
-            if eval_score < min_eval:
-                min_eval = eval_score
-                best_move = (r, c)
-            beta = min(beta, eval_score)
-            if beta <= alpha:
-                break
-        return min_eval, best_move
+        val = float('inf')
+        for x, y in candidates:
+            board[x][y] = opp
+            v, _ = minimax(board, depth-1, alpha, beta, True, player, board_manager)
+            board[x][y] = 0
+            if v < val: val, best = v, (x,y)
+            beta = min(beta, v)
+            if beta <= alpha: break
+        return val, best
 
+def ai_hard_move(board_manager, player):
+    print(f"[AI Hard] Đang tính toán... (depth={MAX_DEPTH})")
+    forced = find_forced(board_manager, player)
+    if forced: return forced
 
-# ------------------- Hàm chính AI Hard -------------------
-def ai_hard_move(board, mark, game):
-    """Trả về nước đi tốt nhất của AI Hard"""
-    print(f"[AI Hard] Đang suy nghĩ... (depth={MAX_DEPTH})")
+    board_copy = deepcopy(board_manager.board)
+    _, move = minimax(board_copy, MAX_DEPTH, -float('inf'), float('inf'), True, player, board_manager)
+    move = move or random.choice(get_candidates(board_manager.board) or [(7,7)])
 
-    # 1. Kiểm tra nước cờ bắt buộc (thắng/chặn thắng)
-    forced = find_forced_move(board, mark, game)
-    if forced:
-        return forced
-
-    # 2. Chạy Minimax + Alpha-Beta
-    board_copy = deepcopy(board)
-    _, best_move = minimax(board_copy, MAX_DEPTH, -float('inf'), float('inf'), True, mark, game)
-
-    if best_move is None:
-        candidates = get_candidate_moves(board)
-        best_move = random.choice(candidates) if candidates else None
-
-    print(f"[AI Hard] Chọn nước đi: {best_move}")
-    return best_move
+    print(f"[AI Hard] Chọn nước đi: {move}")
+    return move
