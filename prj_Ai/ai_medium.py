@@ -2,101 +2,61 @@ import random
 
 # ==================================================
 # File: ai_medium.py
-# Mô tả: Bot Caro cấp độ Trung bình
 # Người viết: Thanh Sơn – Nhóm 5 (Caro Bot)
+# AI TRUNG BÌNH – Tính điểm tấn công + phòng thủ
 # ==================================================
 
-def evaluate_position(board, row, col, mark, game):
-    """
-    Tính điểm cho ô (row, col)
-    Tham số game được truyền từ main để dùng game.check_win()
-    """
-    if board[row][col] != "":
-        return -1  # ô đã có quân thì bỏ qua
-
-    size = len(board)
-    opponent = "O" if mark == "X" else "X"
+def evaluate_position(board, x, y, player):
+    if board[x][y] != 0: return -1
+    opponent = -player
     score = 0
-    directions = [(1, 0), (0, 1), (1, 1), (1, -1)]
+    directions = [(0,1), (1,0), (1,1), (1,-1)]
 
     for dx, dy in directions:
-        # ---- TẤN CÔNG ----
-        my_count = 0
-        i, j = row + dx, col + dy
-        while 0 <= i < size and 0 <= j < size and board[i][j] == mark:
-            my_count += 1
-            i += dx
-            j += dy
-        i, j = row - dx, col - dy
-        while 0 <= i < size and 0 <= j < size and board[i][j] == mark:
-            my_count += 1
-            i -= dx
-            j -= dy
+        my_count = opp_count = 0
+        for i in range(1, 6):
+            nx, ny = x + dx*i, y + dy*i
+            if 0 <= nx < 15 and 0 <= ny < 15:
+                if board[nx][ny] == player: my_count += 1
+                if board[nx][ny] == opponent: opp_count += 1
+            nx, ny = x - dx*i, y - dy*i
+            if 0 <= nx < 15 and 0 <= ny < 15:
+                if board[nx][ny] == player: my_count += 1
+                if board[nx][ny] == opponent: opp_count += 1
 
-        # ---- PHÒNG THỦ ----
-        opp_count = 0
-        i, j = row + dx, col + dy
-        while 0 <= i < size and 0 <= j < size and board[i][j] == opponent:
-            opp_count += 1
-            i += dx
-            j += dy
-        i, j = row - dx, col - dy
-        while 0 <= i < size and 0 <= j < size and board[i][j] == opponent:
-            opp_count += 1
-            i -= dx
-            j -= dy
+        if my_count + 1 >= 5: return 999_999_999
+        if opp_count + 1 >= 5: return 999_999_998
 
-        # ƯU TIÊN CAO NHẤT: Thắng ngay hoặc chặn thắng ngay
-        if my_count + 1 >= 5:    # Đánh vào đây sẽ có 5
-            return 999_999_999
-        if opp_count + 1 >= 5:   # Phải chặn ngay!
-            return 999_999_998
-
-        # Điểm tấn công
-        if my_count >= 4:   score += 100000
+        if my_count >= 4: score += 100000
         elif my_count == 3: score += 5000
-        elif my_count == 2: score += 500
-        elif my_count == 1: score += 50
-
-        # Điểm phòng thủ
-        if opp_count >= 4:   score += 90000
+        if opp_count >= 4: score += 90000
         elif opp_count == 3: score += 4000
-        elif opp_count == 2: score += 400
-        elif opp_count == 1: score += 40
 
-    # Ưu tiên đánh gần tâm bàn cờ
-    center = size // 2
-    distance = abs(row - center) + abs(col - center)
-    score += (50 - distance)
-
+    # Gần tâm + điểm
+    center = 7
+    score += 100 - (abs(x - center) + abs(y - center))
     return score
 
 
-def ai_medium_move(board, mark, game):
-    """
-    AI cấp trung bình:
-    - Tính điểm từng ô trống
-    - Chọn ô có điểm cao nhất
-    - game: đối tượng GameLogic được truyền từ main.py
-    """
-    size = len(board)
+def ai_medium_move(board_manager, player):
+    size = board_manager.size
     best_score = -999_999_999
     best_moves = []
 
-    for i in range(size):
-        for j in range(size):
-            if board[i][j] == "":
-                score = evaluate_position(board, i, j, mark, game)
+    for x in range(size):
+        for y in range(size):
+            if board_manager.board[x][y] == 0:
+                score = evaluate_position(board_manager.board, x, y, player)
                 if score > best_score:
                     best_score = score
-                    best_moves = [(i, j)]
+                    best_moves = [(x, y)]
                 elif score == best_score:
-                    best_moves.append((i, j))
+                    best_moves.append((x, y))
 
     if not best_moves:
+        print("[AI Trung bình] Bàn đầy – Hòa!")
         return None
 
-    # Chọn ngẫu nhiên trong số nước tốt nhất
     move = random.choice(best_moves)
-    print(f"[AI Trung bình] Chọn ô {move} với điểm {best_score}")
+    print(f"[AI Trung bình] Chọn ({move}) – Điểm: {best_score}")
     return move
