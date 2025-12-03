@@ -66,7 +66,7 @@ def evaluate_position(board, x, y, symbol):
     return score
 
 def evaluate_move(board, x, y):
-    """Tính điểm tổng cho nước đi (x,y) - giống hệt Java"""
+    """Tính điểm tổng cho nước đi (x,y)"""
     score = 0
     # Tấn công (O)
     score += evaluate_position(board, x, y, -1) * 2   # AI là O (-1)
@@ -109,3 +109,4 @@ def ai_medium_move(board_manager, player):
     # Nếu không tìm được (hòa), chọn ngẫu nhiên
     empty = [(i,j) for i in range(SIZE) for j in range(SIZE) if board[i][j] == 0]
     return random.choice(empty) if empty else None
+
