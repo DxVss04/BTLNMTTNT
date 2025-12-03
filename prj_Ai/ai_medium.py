@@ -100,23 +100,3 @@ def ai_medium_move(board, mark, game):
     move = random.choice(best_moves)
     print(f"[AI Trung bình] Chọn ô {move} với điểm {best_score}")
     return move
-
-
-# ==================================================
-# Kiểm thử nhanh (chỉ dùng khi chạy riêng file này)
-# ==================================================
-if __name__ == "__main__":
-    from logic import GameLogic
-    
-    test_board = [[""] * 15 for _ in range(15)]
-    # Tạo tình huống đẹp để test
-    test_board[7][7] = "X"
-    test_board[7][8] = "X"
-    test_board[7][9] = "X"
-    test_board[7][10] = "X"  # X có 4 → O phải chặn hoặc tạo thế mạnh
-
-    game = GameLogic(board_size=15)
-    game.board = test_board
-
-    move = ai_medium_move(test_board, "O", game)
-    print("AI Trung bình chọn nước đi:", move)
