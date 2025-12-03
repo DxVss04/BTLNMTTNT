@@ -1,53 +1,80 @@
-# ==================================================
-# File: ai_easy.py
-# Tác giả: Thanh Sơn – Nhóm 5 (Caro AI Project)
-# Mức độ: DỄ
-# Chiến thuật: 
-#   1. Nếu có thể chặn đối thủ thắng ngay → chặn
-#   2. Nếu mình có thể thắng ngay → thắng luôn (ưu tiên cao hơn chặn)
-#   3. Nếu không → đánh ngẫu nhiên vào ô trống
-# ==================================================
-
+# ai_easy.py - MỨC DỄ (dựa hoàn toàn trên bản Java của bạn)
+# Tính năng: thắng ngay → chặn → gần quân → ngẫu nhiên
 import random
+from copy import deepcopy
+
+SIZE = 15
+
+def is_near_occupied(board, x, y):
+    """Kiểm tra ô (x,y) có gần ô nào đã có quân không"""
+    for dx in [-1, 0, 1]:
+        for dy in [-1, 0, 1]:
+            if dx == 0 and dy == 0:
+                continue
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < SIZE and 0 <= ny < SIZE and board[nx][ny] != 0:
+                return True
+    return False
 
 def ai_easy_move(board_manager, player):
     """
-    Trả về nước đi của AI mức DỄ
+    Trả về nước đi của AI mức Dễ
     Args:
-        board_manager: đối tượng BoardManager
-        player: quân của AI (1 = X hoặc -1 = O)
+        board_manager: đối tượng BoardManager (có .board và .check_win(x,y,player))
+        player: -1 (O - AI), thường là -1
     Returns:
-        tuple (x, y) hoặc None nếu không còn nước đi
+        tuple (row, col) hoặc None nếu hòa
     """
     board = board_manager.board
-    size = board_manager.size  # 15
+    opponent = -player  # người chơi là X (1)
 
-    # === BƯỚC 1: Kiểm tra nước thắng ngay (mình thắng trước) ===
-    for x in range(size):
-        for y in range(size):
-            if board[x][y] == 0:
-                board[x][y] = player
-                if board_manager.check_win(x, y, player):
-                    board[x][y] = 0
-                    print(f"[AI Dễ] Thắng ngay tại ({x}, {y})")
-                    return x, y
-                board[x][y] = 0  # khôi phục
+    # ==================================================================
+    # 1. Tấn công: Nếu AI có thể thắng ngay → đánh luôn
+    # ==================================================================
+    for i in range(SIZE):
+        for j in range(SIZE):
+            if board[i][j] == 0:
+                board[i][j] = player
+                if board_manager.check_win(i, j, player):
+                    board[i][j] = 0
+                    print(f"[AI Dễ] Thắng ngay tại ({i}, {j})")
+                    return i, j
+                board[i][j] = 0
 
-    # === BƯỚC 2: Chặn đối thủ thắng ngay ===
-    opponent = -player
-    for x in range(size):
-        for y in range(size):
-            if board[x][y] == 0:
-                board[x][y] = opponent
-                if board_manager.check_win(x, y, opponent):
-                    board[x][y] = 0
-                    return x, y
-                board[x][y] = 0
+    # ==================================================================
+    # 2. Phòng thủ: Chặn nếu người chơi sắp thắng
+    # ==================================================================
+    for i in range(SIZE):
+        for j in range(SIZE):
+            if board[i][j] == 0:
+                board[i][j] = opponent
+                if board_manager.check_win(i, j, opponent):
+                    board[i][j] = 0
+                    print(f"[AI Dễ] Chặn đối thủ thắng tại ({i}, {j})")
+                    return i, j
+                board[i][j] = 0
 
-    # === BƯỚC 3: Đánh ngẫu nhiên vào ô trống ===
-    empty_cells = [(i, j) for i in range(size) for j in range(size) if board[i][j] == 0]
-    if empty_cells:
-        move = random.choice(empty_cells)
+    # ==================================================================
+    # 3. Ưu tiên đánh gần các ô đã có quân
+    # ==================================================================
+    near_cells = []
+    for i in range(SIZE):
+        for j in range(SIZE):
+            if board[i][j] == 0 and is_near_occupied(board, i, j):
+                near_cells.append((i, j))
+
+    if near_cells:
+        move = random.choice(near_cells)
+        print(f"[AI Dễ] Đánh gần quân tại {move}")
         return move
 
-    return None  # Hòa hoặc không còn nước đi
+    # ==================================================================
+    # 4. Nếu không có ô nào gần → đánh ngẫu nhiên
+    # ==================================================================
+    empty_cells = [(i, j) for i in range(SIZE) for j in range(SIZE) if board[i][j] == 0]
+    if empty_cells:
+        move = random.choice(empty_cells)
+        print(f"[AI Dễ] Đánh ngẫu nhiên tại {move}")
+        return move
+
+    return None  # Hòa
