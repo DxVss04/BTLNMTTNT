@@ -35,4 +35,5 @@ def ai_easy_move(board, mark, game):
         return move
 
     # 3. Không còn ô trống
-    return None
+   print("[AI dễ] Bàn cờ đã đầy – Hòa!")
+    return None   
