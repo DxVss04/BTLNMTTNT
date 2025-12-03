@@ -1,120 +1,111 @@
-# ==================================================
-# File: ai_medium.py
-# Người viết: Thanh Sơn – Nhóm 5 (Caro AI Project)
-# Mức độ: TRUNG BÌNH (rất mạnh, gần Hard)
-# Chiến thuật:
-#   - Ưu tiên CHẶN đối thủ tạo 4 hoặc sắp thắng
-#   - Ưu tiên TẤN CÔNG tạo 4 mở hoặc 3 mở
-#   - Tính điểm chi tiết theo dạng (4 mở > 3 mở 2 bên > 3 mở 1 bên > 2 mở...)
-#   - Ưu tiên đánh gần tâm + gần các nước đã đi
-# ==================================================
-
+# ai_medium.py - MỨC TRUNG BÌNH
+# Logic giống hệt: đánh giá điểm tấn công + phòng thủ + ưu tiên gần quân
 import random
 
-def evaluate_position(board, x, y, player):
-    if board[x][y] != 0:
-        return -1
+SIZE = 15
 
-    opponent = -player
+def is_near_occupied(board, x, y):
+    """Kiểm tra ô (x,y) có gần ô nào đã có quân không"""
+    for dx in [-1, 0, 1]:
+        for dy in [-1, 0, 1]:
+            if dx == 0 and dy == 0:
+                continue
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < SIZE and 0 <= ny < SIZE and board[nx][ny] != 0:
+                return True
+    return False
+
+def count_consecutive(board, x, y, dx, dy, symbol):
+    """Đếm số quân liên tiếp theo hướng (dx,dy) """
+    count = 0
+    nx, ny = x + dx, y + dy
+    while 0 <= nx < SIZE and 0 <= ny < SIZE and board[nx][ny] == symbol:
+        count += 1
+        nx += dx
+        ny += dy
+    return count
+
+def is_open_end(board, x, y):
+    """Kiểm tra đầu hướng có trống không"""
+    return 0 <= x < SIZE and 0 <= y < SIZE and board[x][y] == 0
+
+def evaluate_position(board, x, y, symbol):
+    """Đánh giá 1 vị trí theo 4 hướng """
     score = 0
-    directions = [(0, 1), (1, 0), (1, 1), (1, -1)]
+    directions = [(1, 0), (0, 1), (1, 1), (1, -1)]  # ngang, dọc, chéo \, chéo /
 
     for dx, dy in directions:
-        # Đếm số quân của mình và đối thủ theo hướng
-        my_count = 1    # chính ô (x,y) đang xét
-        opp_count = 1
-        my_open = 0     # số đầu mở của mình
-        opp_open = 0    # số đầu mở của đối thủ
+        forward = count_consecutive(board, x, y, dx, dy, symbol)
+        backward = count_consecutive(board, x, y, -dx, -dy, symbol)
+        count = 1 + forward + backward  # +1 là ô chính đang thử
+        open_ends = 0
 
-        # Kiểm tra 2 bên của hướng
-        for sign in [1, -1]:
-            for step in range(1, 6):
-                nx = x + sign * dx * step
-                ny = y + sign * dy * step
-                if not (0 <= nx < 15 and 0 <= ny < 15):
-                    break  # ra ngoài bàn cờ → đầu bị chặn
-                cell = board[nx][ny]
-                if cell == player:
-                    my_count += 1
-                elif cell == opponent:
-                    opp_count += 1
-                    break  # bị chặn bởi đối thủ
-                else:
-                    # ô trống → vẫn mở
-                    if step == 1:
-                        my_open += 1 if cell == 0 else 0
-                    break  # chỉ cần ô trống đầu tiên
+        # Kiểm tra 2 đầu có mở không
+        fx, fy = x + (forward + 1) * dx, y + (forward + 1) * dy
+        bx, by = x - (backward + 1) * dx, y - (backward + 1) * dy
+        if is_open_end(board, fx, fy):
+            open_ends += 1
+        if is_open_end(board, bx, by):
+            open_ends += 1
 
-        # === ĐÁNH GIÁ TỪNG HƯỚNG ===
-        # Tấn công (mình)
-        if my_count >= 5:
-            return 999_999_999  # thắng ngay
-        elif my_count == 4:
-            if my_open >= 1:        # 4 mở 1 đầu → cực nguy hiểm
-                score += 1_000_000
-            else:
-                score += 100_000        # 4 bị chặn 1 đầu
-        elif my_count == 3:
-            if my_open == 2:            # 3 mở 2 đầu
-                score += 100_000
-            elif my_open == 1:          # 3 mở 1 đầu
-                score += 10_000
-        elif my_count == 2 and my_open == 2:
-            score += 1_000
-
-        # Phòng thủ (ưu tiên cao hơn tấn công!)
-        if opp_count >= 5:
-            return 999_999_998  # đối thủ thắng → phải chặn ngay
-        elif opp_count == 4:
-            if opp_open >= 1:
-                score += 5_000_000      # đối thủ 4 mở → CHẶN NGAY!
-            else:
-                score += 500_000
-        elif opp_count == 3:
-            if opp_open == 2:
-                score += 500_000        # 3xx3 → rất nguy hiểm
-            elif opp_open == 1:
-                score += 50_000
-
-    # Ưu tiên đánh gần tâm bàn cờ
-    center = 7
-    score += 200 - (abs(x - center) + abs(y - center)) * 10
-
-    # Ưu tiên đánh gần các nước đã đi (tạo thế trận)
-    near_bonus = 0
-    for dx in range(-3, 4):
-        for dy in range(-3, 4):
-            nx, ny = x + dx, y + dy
-            if 0 <= nx < 15 and 0 <= ny < 15 and board[nx][ny] != 0:
-                near_bonus += 20
-    score += near_bonus
+        if count >= 5:
+            score += 10000
+        elif count == 4 and open_ends == 2:
+            score += 9000
+        elif count == 4 and open_ends == 1:
+            score += 5000 if symbol == -1 else 4000  # AI (O) được điểm cao hơn
+        elif count == 3 and open_ends == 2:
+            score += 500 if symbol == -1 else 400
+        elif count == 2 and open_ends == 2:
+            score += 100 if symbol == -1 else 80
+        elif count == 3 and open_ends == 1:
+            score += 200 if symbol == -1 else 150
+        elif count == 2 and open_ends == 1:
+            score += 50 if symbol == -1 else 30
 
     return score
 
+def evaluate_move(board, x, y):
+    """Tính điểm tổng cho nước đi (x,y) - giống hệt Java"""
+    score = 0
+    # Tấn công (O)
+    score += evaluate_position(board, x, y, -1) * 2   # AI là O (-1)
+    # Phòng thủ (X)
+    score += evaluate_position(board, x, y, 1)        # Người là X (1)
+    # Ưu tiên gần quân đã đánh (+5 điểm)
+    if is_near_occupied(board, x, y):
+        score += 5
+    return score
 
 def ai_medium_move(board_manager, player):
     """
     Trả về nước đi tốt nhất cho AI mức TRUNG BÌNH
+    Args:
+        board_manager: BoardManager object
+        player: -1 (AI - O)
+    Returns:
+        (row, col) hoặc None
     """
     board = board_manager.board
-    size = board_manager.size  # 15
-    best_score = -999_999_999
-    best_moves = []
+    best_score = float('-inf')
+    best_move = None
 
-    # Duyệt tất cả ô trống
-    for i in range(size):
-        for j in range(size):
+    # Duyệt tất cả ô trống → tìm nước có điểm cao nhất
+    for i in range(SIZE):
+        for j in range(SIZE):
             if board[i][j] == 0:
-                score = evaluate_position(board, i, j, player)
+                # Thử đặt tạm để tính điểm
+                board[i][j] = player
+                score = evaluate_move(board, i, j)
+                board[i][j] = 0  # khôi phục
+
                 if score > best_score:
                     best_score = score
-                    best_moves = [(i, j)]
-                elif score == best_score:
-                    best_moves.append((i, j))
+                    best_move = (i, j)
 
-    if not best_moves:
-        return None
+    if best_move:
+        return best_move
 
-    # Chọn ngẫu nhiên trong số các nước tốt nhất
-    chosen = random.choice(best_moves)
-    return chosen
+    # Nếu không tìm được (hòa), chọn ngẫu nhiên
+    empty = [(i,j) for i in range(SIZE) for j in range(SIZE) if board[i][j] == 0]
+    return random.choice(empty) if empty else None
