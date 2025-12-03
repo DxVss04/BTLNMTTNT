@@ -182,24 +182,3 @@ def ai_hard_move(board, mark, game):
 
     print(f"[AI Hard] Chọn nước đi: {best_move}")
     return best_move
-
-
-# ==================================================
-# Kiểm thử nhanh
-# ==================================================
-if __name__ == "__main__":
-    from logic import GameLogic
-
-    print("=== Kiểm thử AI Hard ===")
-    board = [[""] * 15 for _ in range(15)]
-    board[7][7] = "X"
-    board[7][8] = "X"
-    board[7][9] = "X"
-    board[7][10] = "X"
-
-    game = GameLogic(board_size=15)
-    game.board = board
-
-    print("X có 4 quân liên tiếp → O phải chặn ở (7,6) hoặc (7,11)")
-    move = ai_hard_move(board, "O", game)
-    print(f"→ AI Hard chọn: {move}")
