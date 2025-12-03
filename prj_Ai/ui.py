@@ -16,7 +16,6 @@ class CaroUI:
         self.on_click_callback = on_click_callback
         self.on_restart_callback = on_restart_callback
 
-        # --- dùng logic.py ---
         self.logic = BoardManager(size=BOARD_SIZE)
 
         self.mode_var = tk.StringVar(value="PVP")
@@ -99,7 +98,7 @@ class CaroUI:
     #   Vẽ bàn cờ
     # ============================================================
     def redraw_board(self):
-        """Vẽ lại toàn bộ bàn cờ theo trạng thái trong logic.py"""
+        """Vẽ lại toàn bộ bàn cờ """
         self.canvas.delete("all")
 
         # --- Vẽ lưới ---
