@@ -22,7 +22,6 @@ def ai_easy_move(board_manager, player):
                 board_manager.board[x][y] = opponent
                 if board_manager.check_win(x, y, opponent):
                     board_manager.board[x][y] = 0  # Khôi phục
-                    print(f"[AI Dễ] Chặn đối thủ thắng tại ({x}, {y})")
                     return x, y
                 board_manager.board[x][y] = 0
 
