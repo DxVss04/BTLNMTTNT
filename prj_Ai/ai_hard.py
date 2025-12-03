@@ -1,178 +1,144 @@
-# ==================================================
-# File: ai_hard.py
-# Người viết: Thanh Sơn – Nhóm 5 (Caro AI Project)
-# Mức độ: KHÓ NHẤT – Minimax + Alpha-Beta + Evaluation cực mạnh
-# Đặc điểm: Gần như BẤT BẠI trên bàn 15x15 (5 ô thắng)
-# Tốc độ: Nhanh (dưới 2 giây mỗi nước), nhờ cắt tỉa tốt + candidate + thứ tự ưu tiên
-# ==================================================
-
+# ai_hard.py
 import random
 from copy import deepcopy
 
-# Độ sâu tìm kiếm (có thể tăng lên 7-8 nếu máy mạnh)
-MAX_DEPTH = 6
+SIZE = 15
+MAX_DEPTH = 3
 
-# Lấy danh sách nước đi tiềm năng (chỉ xét gần các ô đã có quân)
+# ==================================================================
+# Candidate reduction giống hệt Java: chỉ xét ô gần quân đã đánh
+# ==================================================================
+def is_near_occupied(board, x, y):
+    for dx in [-1, 0, 1]:
+        for dy in [-1, 0, 1]:
+            if dx == 0 and dy == 0:
+                continue
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < SIZE and 0 <= ny < SIZE and board[nx][ny] != 0:
+                return True
+    return False
+
 def get_candidates(board):
-    candidates = set()
-    size = len(board)
-    has_move = False
-    for i in range(size):
-        for j in range(size):
-            if board[i][j] != 0:
-                has_move = True
-                for di in range(-2, 3):
-                    for dj in range(-2, 3):
-                        if di == 0 and dj == 0:
-                            continue
-                        ni, nj = i + di, j + dj
-                        if 0 <= ni < size and 0 <= nj < size and board[ni][nj] == 0:
-                            candidates.add((ni, nj))
-    if not has_move:
-        return [(7, 7)]
-    return list(candidates) if candidates else [(7, 7)]
+    candidates = []
+    for i in range(SIZE):
+        for j in range(SIZE):
+            if board[i][j] == 0 and is_near_occupied(board, i, j):
+                candidates.append((i, j))
+    return candidates if candidates else [(7, 7)]
 
-# Hàm đánh giá trạng thái bàn cờ (rất mạnh!)
-def evaluate_board(board, player):
-    def count_line(line, p):
-        count = 0
-        open_ends = 0
-        for cell in line:
-            if cell == p:
-                count += 1
-            elif cell == 0:
-                if count > 0:
-                    open_ends += 1
-                count = 0
-            else:
-                if count > 0:
-                    open_ends += 1
-                count = 0
-        if count > 0:
-            open_ends += 1
-        return count, open_ends
-
-    score = 0
-    opp = -player
-
-    # Đánh giá tất cả các đường
-    for p, factor in [(player, 1), (opp, -1.5)]:  # Phòng thủ quan trọng hơn tấn công
-        for i in range(15):
-            # Hàng, cột
-            row = board[i]
-            col = [board[j][i] for j in range(15)]
-            score += factor * evaluate_pattern(count_line(row, p))
-            score += factor * evaluate_pattern(count_line(col, p))
-        # Đường chéo
-        for i in range(15):
-            diag1 = [board[i+k][i+k] for k in range(15-i)]
-            diag2 = [board[i+k][i-k] for k in range(i+1)]
-            diag3 = [board[i-k][i+k] for k in range(i+1)]
-            score += factor * evaluate_pattern(count_line(diag1, p))
-            if len(diag2) >= 5: score += factor * evaluate_pattern(count_line(diag2, p))
-            if len(diag3) >= 5: score += factor * evaluate_pattern(count_line(diag3, p))
-    return score
-
-def evaluate_pattern(count_open):
-    count, opens = count_open
-    if count >= 5:
-        return 1000000
-    elif count == 4:
-        return 100000 if opens >= 1 else 5000
-    elif count == 3:
-        return 10000 if opens == 2 else 1000 if opens == 1 else 100
-    elif count == 2:
-        return 1000 if opens == 2 else 100
-    return 0
-
-# Kiểm tra thắng ngay lập tức (ưu tiên cao nhất)
-def find_winning_move(board_manager, player):
-    board = board_manager.board
-    size = board_manager.size
-    opp = -player
-
-    for x, y in get_candidates(board):
-        if board[x][y] != 0:
-            continue
-        # Thử mình thắng
-        board[x][y] = player
-        if board_manager.check_win(x, y, player):
-            board[x][y] = 0
-            return (x, y)
-        # Thử đối thủ thắng → chặn
-        board[x][y] = opp
-        if board_manager.check_win(x, y, opp):
-            board[x][y] = 0
-            return (x, y)
-        board[x][y] = 0
-    return None
-
-# Minimax + Alpha-Beta + Thứ tự ưu tiên nước đi
-def minimax(board, depth, alpha, beta, maximizing, player, board_manager):
-    if depth == 0 or board_manager.is_full():
-        return evaluate_board(board, player), None
-
-    win_move = find_winning_move(board_manager, player if maximizing else -player)
-    if win_move:
-        return (10000000 if maximizing else -10000000), win_move
+# ==================================================================
+# Minimax 
+# ==================================================================
+def minimax(board, depth, alpha, beta, maximizing, player):
+    # Kiểm tra thắng/thua (dùng BoardManager để chính xác)
+    winner = check_winner_fast(board)
+    if winner == player: return 99999999
+    if winner == -player: return -99999999
+    if depth == 0:
+        return evaluate_board_fast(board, player)
 
     candidates = get_candidates(board)
     if not candidates:
-        return 0, None
+        return 0
 
-    # Sắp xếp nước đi theo độ ưu tiên (tấn công trước, phòng thủ sau)
-    def priority(move):
-        x, y = move
-        temp = board[x][y]
-        board[x][y] = player if maximizing else -player
-        score = evaluate_board(board, player)
-        board[x][y] = temp
-        return -score if maximizing else score
-
-    candidates.sort(key=priority, reverse=maximizing)
-
-    best_move = candidates[0]
     if maximizing:
-        value = -float('inf')
-        for move in candidates:
-            x, y = move
+        max_eval = float('-inf')
+        for x, y in candidates:
             board[x][y] = player
-            val, _ = minimax(board, depth-1, alpha, beta, False, player, board_manager)
+            eval_score = minimax(board, depth - 1, alpha, beta, False, player)
             board[x][y] = 0
-            if val > value:
-                value = val
-                best_move = move
-            alpha = max(alpha, val)
+            max_eval = max(max_eval, eval_score)
+            alpha = max(alpha, eval_score)
             if beta <= alpha:
                 break
-        return value, best_move
+        return max_eval
     else:
-        value = float('inf')
-        for move in candidates:
-            x, y = move
+        min_eval = float('inf')
+        for x, y in candidates:
             board[x][y] = -player
-            val, _ = minimax(board, depth-1, alpha, beta, True, player, board_manager)
+            eval_score = minimax(board, depth - 1, alpha, beta, True, player)
             board[x][y] = 0
-            if val < value:
-                value = val
-                best_move = move
-            beta = min(beta, val)
+            min_eval = min(min_eval, eval_score)
+            beta = min(beta, eval_score)
             if beta <= alpha:
                 break
-        return value, best_move
+        return min_eval
 
-# Hàm chính AI Hard
+# 
+# Đánh giá nhanh
+# 
+def evaluate_board_fast(board, player):
+    score = 0
+    for i in range(SIZE):
+        for j in range(SIZE):
+            if board[i][j] == player:
+                score += evaluate_pos(board, i, j, player)
+            elif board[i][j] == -player:
+                score -= evaluate_pos(board, i, j, -player) * 1.1
+    return score
+
+def evaluate_pos(board, x, y, p):
+    score = 0
+    for dx, dy in [(0,1),(1,0),(1,1),(1,-1)]:
+        count = 1
+        for sign in [1, -1]:
+            nx, ny = x + sign*dx, y + sign*dy
+            for _ in range(4):
+                if 0 <= nx < SIZE and 0 <= ny < SIZE:
+                    if board[nx][ny] == p:
+                        count += 1
+                    elif board[nx][ny] != 0:
+                        count = 0
+                        break
+                    nx += sign*dx
+                    ny += sign*dy
+                else:
+                    break
+        if count >= 5: score += 100000
+        elif count == 4: score += 10000
+        elif count == 3: score += 500
+        elif count == 2: score += 50
+    return score
+
+#Kiểm tra thắng nhanh
+def check_winner_fast(board):
+    for i in range(SIZE):
+        for j in range(SIZE):
+            if board[i][j] == 0: continue
+            p = board[i][j]
+            for dx, dy in [(0,1),(1,0),(1,1),(1,-1)]:
+                if (count_line(board, i, j, dx, dy, p) +
+                    count_line(board, i, j, -dx, -dy, p) >= 4):
+                    return p
+    return 0
+
+def count_line(board, x, y, dx, dy, p):
+    count = 0
+    nx, ny = x + dx, y + dy
+    while 0 <= nx < SIZE and 0 <= ny < SIZE and board[nx][ny] == p:
+        count += 1
+        nx += dx
+        ny += dy
+    return count
+
+# ==================================================================
+# Hàm chính
+# ==================================================================
 def ai_hard_move(board_manager, player):
-    # Ưu tiên thắng/chặn ngay lập tức
-    forced = find_winning_move(board_manager, player)
-    if forced:
-        return forced
+    print("[AI Hard] Đang tính... (depth=3, siêu nhanh)")
+    board = board_manager.board
 
-    # Minimax chính
-    board_copy = deepcopy(board_manager.board)
-    _, best_move = minimax(board_copy, MAX_DEPTH, -float('inf'), float('inf'), True, player, board_manager)
-    
-    if best_move is None:
-        best_move = (7, 7)
-    
+    # 1. Tìm nước tốt nhất trong các ô gần quân
+    candidates = get_candidates(board)
+    best_score = float('-inf')
+    best_move = candidates[0]
+
+    board_copy = deepcopy(board)
+    for x, y in candidates:
+        board_copy[x][y] = player
+        score = minimax(board_copy, MAX_DEPTH - 1, float('-inf'), float('inf'), False, player)
+        board_copy[x][y] = 0
+        if score > best_score:
+            best_score = score
+            best_move = (x, y)
     return best_move
