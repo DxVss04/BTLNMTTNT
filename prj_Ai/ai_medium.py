@@ -1,5 +1,5 @@
 # ai_medium.py - MỨC TRUNG BÌNH
-# Logic giống hệt: đánh giá điểm tấn công + phòng thủ + ưu tiên gần quân
+# Logic: đánh giá điểm tấn công + phòng thủ + ưu tiên gần quân
 import random
 
 SIZE = 15
@@ -109,4 +109,5 @@ def ai_medium_move(board_manager, player):
     # Nếu không tìm được (hòa), chọn ngẫu nhiên
     empty = [(i,j) for i in range(SIZE) for j in range(SIZE) if board[i][j] == 0]
     return random.choice(empty) if empty else None
+
 
