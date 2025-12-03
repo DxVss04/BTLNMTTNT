@@ -30,8 +30,5 @@ def ai_easy_move(board_manager, player):
     empty_cells = [(x, y) for x in range(size) for y in range(size) if board_manager.board[x][y] == 0]
     if empty_cells:
         move = random.choice(empty_cells)
-        print(f"[AI Dễ] Đánh ngẫu nhiên tại {move}")
         return move
-
-    print("[AI Dễ] Bàn cờ đầy – Hòa!")
     return None
