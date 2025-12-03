@@ -36,23 +36,3 @@ def ai_easy_move(board, mark, game):
 
     # 3. Không còn ô trống
     return None
-
-
-# ==================================================
-# Kiểm thử nhanh
-# ==================================================
-if __name__ == "__main__":
-    from logic import GameLogic  # Chỉ dùng khi test riêng file này
-    
-    # Tạo bàn cờ test 15x15 (chỉ dùng 5x5 đầu cho dễ nhìn)
-    test_board = [[""] * 15 for _ in range(15)]
-    test_board[0][0] = "X"
-    test_board[0][1] = "X"
-    test_board[0][2] = "X"
-    test_board[0][3] = "X"  # X sắp có 5 → O phải chặn!
-
-    game = GameLogic(board_size=15)
-    game.board = test_board
-
-    move = ai_easy_move(test_board, "O", game)
-    print("AI chọn nước đi:", move)  # Kết quả mong đợi: (0, 4) hoặc tương tự
