@@ -1,6 +1,7 @@
 # main.py - File chính để chạy game Cờ Caro AI
 
 import tkinter as tk
+import time  # <--- [MỚI] Thêm thư viện time ở đây
 from ui import CaroUI
 from logic import BoardManager
 from ai_easy import ai_easy_move
@@ -76,7 +77,21 @@ class CaroGame:
             player_for_ai = self.current_player
 
         ai_func = self.get_ai_function()
-        move = ai_func(self.ui.logic, player_for_ai)
+
+        # ==========================================
+        # [MỚI] ĐO THỜI GIAN SUY NGHĨ CỦA AI TẠI ĐÂY
+        # ==========================================
+        start_time = time.time()     # 1. Bấm giờ
+        
+        move = ai_func(self.ui.logic, player_for_ai) # AI tính toán
+        
+        end_time = time.time()       # 2. Ngắt giờ
+        
+        # 3. In kết quả ra màn hình Console
+        diff_name = self.ui.diff_var.get()
+        duration = end_time - start_time
+        print(f"AI [{diff_name}] đã suy nghĩ mất: {duration:.4f} giây")
+        # ==========================================
 
         if move is None:
             self.end_game("Hòa cờ!")
