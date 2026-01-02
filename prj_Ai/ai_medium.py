@@ -1,5 +1,6 @@
 # ai_medium.py - MỨC TRUNG BÌNH
 # Logic: đánh giá điểm tấn công + phòng thủ + ưu tiên gần quân
+# dùng hàm _count_consecutive từ BoardManager
 import random
 
 SIZE = 15
@@ -15,36 +16,37 @@ def is_near_occupied(board, x, y):
                 return True
     return False
 
-def count_consecutive(board, x, y, dx, dy, symbol):
-    """Đếm số quân liên tiếp theo hướng (dx,dy) """
-    count = 0
-    nx, ny = x + dx, y + dy
-    while 0 <= nx < SIZE and 0 <= ny < SIZE and board[nx][ny] == symbol:
-        count += 1
-        nx += dx
-        ny += dy
-    return count
-
 def is_open_end(board, x, y):
     """Kiểm tra đầu hướng có trống không"""
     return 0 <= x < SIZE and 0 <= y < SIZE and board[x][y] == 0
 
-def evaluate_position(board, x, y, symbol):
-    """Đánh giá 1 vị trí theo 4 hướng """
+def evaluate_position(board_manager, x, y, symbol):
+    """Đánh giá 1 vị trí theo 4 hướng, dùng _count_consecutive từ BoardManager"""
     score = 0
+    board = board_manager.board
     directions = [(1, 0), (0, 1), (1, 1), (1, -1)]  # ngang, dọc, chéo \, chéo /
 
     for dx, dy in directions:
-        forward = count_consecutive(board, x, y, dx, dy, symbol)
-        backward = count_consecutive(board, x, y, -dx, -dy, symbol)
-        count = 1 + forward + backward  # +1 là ô chính đang thử
-        open_ends = 0
+        # Dùng hàm _count_consecutive từ board_manager để đếm tổng quân liên tiếp (đã bao gồm 2 bên + ô gốc)
+        count = board_manager._count_consecutive(x, y, dx, dy, symbol)
 
-        # Kiểm tra 2 đầu có mở không
-        fx, fy = x + (forward + 1) * dx, y + (forward + 1) * dy
-        bx, by = x - (backward + 1) * dx, y - (backward + 1) * dy
+        # Tính open_ends: kiểm tra 2 đầu của hàng (cách 1 ô ngoài hàng)
+        # Tìm độ dài một bên để biết vị trí đầu
+        forward_count = 0
+        nx, ny = x + dx, y + dy
+        while 0 <= nx < SIZE and 0 <= ny < SIZE and board[nx][ny] == symbol:
+            forward_count += 1
+            nx += dx
+            ny += dy
+        backward_count = count - 1 - forward_count  # tổng - gốc - forward = backward
+
+        open_ends = 0
+        # Đầu forward
+        fx, fy = x + (forward_count + 1) * dx, y + (forward_count + 1) * dy
         if is_open_end(board, fx, fy):
             open_ends += 1
+        # Đầu backward
+        bx, by = x - (backward_count + 1) * dx, y - (backward_count + 1) * dy
         if is_open_end(board, bx, by):
             open_ends += 1
 
@@ -65,13 +67,14 @@ def evaluate_position(board, x, y, symbol):
 
     return score
 
-def evaluate_move(board, x, y):
+def evaluate_move(board_manager, x, y):
     """Tính điểm tổng cho nước đi (x,y)"""
     score = 0
+    board = board_manager.board
     # Tấn công (O)
-    score += evaluate_position(board, x, y, -1) * 2   # AI là O (-1)
+    score += evaluate_position(board_manager, x, y, -1) * 2   # AI là O (-1)
     # Phòng thủ (X)
-    score += evaluate_position(board, x, y, 1)        # Người là X (1)
+    score += evaluate_position(board_manager, x, y, 1)        # Người là X (1)
     # Ưu tiên gần quân đã đánh (+5 điểm)
     if is_near_occupied(board, x, y):
         score += 5
@@ -96,7 +99,7 @@ def ai_medium_move(board_manager, player):
             if board[i][j] == 0:
                 # Thử đặt tạm để tính điểm
                 board[i][j] = player
-                score = evaluate_move(board, i, j)
+                score = evaluate_move(board_manager, i, j)
                 board[i][j] = 0  # khôi phục
 
                 if score > best_score:
@@ -109,5 +112,3 @@ def ai_medium_move(board_manager, player):
     # Nếu không tìm được (hòa), chọn ngẫu nhiên
     empty = [(i,j) for i in range(SIZE) for j in range(SIZE) if board[i][j] == 0]
     return random.choice(empty) if empty else None
-
-
