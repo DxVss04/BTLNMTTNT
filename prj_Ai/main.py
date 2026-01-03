@@ -1,7 +1,7 @@
 # main.py - File chính để chạy game Cờ Caro AI
 
 import tkinter as tk
-import time  # <--- [MỚI] Thêm thư viện time ở đây
+import time
 from ui import CaroUI
 from logic import BoardManager
 from ai_easy import ai_easy_move
