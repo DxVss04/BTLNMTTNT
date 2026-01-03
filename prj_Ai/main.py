@@ -78,9 +78,6 @@ class CaroGame:
 
         ai_func = self.get_ai_function()
 
-        # ==========================================
-        # [MỚI] ĐO THỜI GIAN SUY NGHĨ CỦA AI TẠI ĐÂY
-        # ==========================================
         start_time = time.time()     # 1. Bấm giờ
         
         move = ai_func(self.ui.logic, player_for_ai) # AI tính toán
